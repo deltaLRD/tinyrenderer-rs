@@ -1,4 +1,4 @@
-
+use crate::light;
 use crate::model::*;
 use crate::r#const::*;
 use crate::vec::*;
@@ -47,24 +47,24 @@ pub fn triangle_bounding_box(
     image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>,
     color: [u8; 3],
 ) {
-    let mut boundingbox = BoundingBox::from(v1,v2,v3);
+    let mut boundingbox = BoundingBox::from(v1, v2, v3);
     let shape = [image.width(), image.height()];
     boundingbox.fit_to_screen(shape[0] as i32, shape[1] as i32);
     for x in boundingbox.xmin..=boundingbox.xmax {
         for y in boundingbox.ymin..=boundingbox.ymax {
-            let v1 = [v1[0] as f32,v1[1] as f32];
-            let v2 = [v2[0] as f32,v2[1] as f32];
-            let v3 = [v3[0] as f32,v3[1] as f32];
-            let bc = barycentric_coord(v1, v2, v3, [x as f32,y as f32]);
+            let v1 = [v1[0] as f32, v1[1] as f32];
+            let v2 = [v2[0] as f32, v2[1] as f32];
+            let v3 = [v3[0] as f32, v3[1] as f32];
+            let bc = barycentric_coord(v1, v2, v3, [x as f32, y as f32]);
             if bc.x < 0f32 || bc.y < 0f32 || bc.z < 0f32 {
                 continue;
             }
-            image[(x as u32,y as u32)] = Rgb::from(color);
+            image[(x as u32, y as u32)] = Rgb::from(color);
         }
     }
-    line(v1[0], v1[1], v2[0], v2[1], image, BLUE);
-    line(v2[0], v2[1], v3[0], v3[1], image, GREEN);
-    line(v3[0], v3[1], v1[0], v1[1], image, RED);
+    // line(v1[0], v1[1], v2[0], v2[1], image, BLUE);
+    // line(v2[0], v2[1], v3[0], v3[1], image, GREEN);
+    // line(v3[0], v3[1], v1[0], v1[1], image, RED);
 }
 
 pub fn barycentric_coord<T>(v1: [T; 2], v2: [T; 2], v3: [T; 2], v4: [T; 2]) -> Vec3<T>
@@ -76,11 +76,10 @@ where
         + From<f32>
         + Into<f32>
         + std::ops::Sub<Output = T>
+        + std::ops::SubAssign
         + std::cmp::PartialOrd
-        + std::ops::Div<Output = T>
-        
+        + std::ops::Div<Output = T>,
 {
-
     let w = Vec3 {
         x: v2[0] - v1[0],
         y: v3[0] - v1[0],
@@ -91,17 +90,19 @@ where
         y: v3[1] - v1[1],
         z: v1[1] - v4[1],
     });
-    if w.z.partial_cmp(&T::from(1f32)).unwrap() == std::cmp::Ordering::Less  && w.z.partial_cmp(&T::from(-1f32)).unwrap() == std::cmp::Ordering::Greater {
-        return Vec3{
-            x:T::from(-1f32),
-            y:T::from(1f32),
-            z:T::from(1f32),
-        }
+    if w.z.partial_cmp(&T::from(1f32)).unwrap() == std::cmp::Ordering::Less
+        && w.z.partial_cmp(&T::from(-1f32)).unwrap() == std::cmp::Ordering::Greater
+    {
+        return Vec3 {
+            x: T::from(-1f32),
+            y: T::from(1f32),
+            z: T::from(1f32),
+        };
     }
-    Vec3{
-        x:T::from(1f32)-(w.x+w.y)/w.z,
-        y:w.y/w.z,
-        z:w.x/w.z
+    Vec3 {
+        x: T::from(1f32) - (w.x + w.y) / w.z,
+        y: w.y / w.z,
+        z: w.x / w.z,
     }
 }
 
@@ -162,28 +163,53 @@ pub fn triangle(
     line(v3[0], v3[1], v1[0], v1[1], image, RED);
 }
 
-pub fn draw_model_line(model: &Model, image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>) {
+pub fn draw_model_line(
+    model: &Model,
+    image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>,
+    lights: &Vec<Light>,
+) {
     let width = image.width();
     let hight = image.height();
     // let mut rng = rand::thread_rng();
-
+    let light = lights[0];
     for i in 0..model.nfaces() {
         let face = model.face(i);
-        let mut vs: Vec<[i32; 2]> = vec![];
+        let mut screen_coord: Vec<Vec2<f32>> = vec![];
+        let mut world_coord: Vec<Vec3<f32>> = vec![];
         for j in 0..3 {
             let v0 = model.vert(face[j]);
             // let v1 = model.vert(face[(j + 1) % 3]);
             let x0 = (v0[0] + 1f32) * (width as f32) / 2f32;
             let y0 = (v0[1] + 1f32) * (hight as f32) / 2f32;
-            vs.push([
-                (x0 as i32).min((width - 1) as i32),
-                (y0 as i32).min((hight - 1) as i32),
-            ]);
+            screen_coord.push(Vec2 { x: x0, y: y0 });
+            world_coord.push(Vec3 {
+                x: v0[0],
+                y: v0[1],
+                z: v0[2],
+            });
         }
         // triangle(vs[0], vs[1], vs[2], image, WHITE);
-        // triangle_bounding_box(vs[0], vs[1], vs[2], image, WHITE);
+        let n: Vec3<f32> = world_coord[2]
+            .sub(&world_coord[0])
+            .cross_product(&(world_coord[1].sub(&world_coord[0])))
+            .normalize();
+
+        let intensity = n.dot_product(&light.dir);
+        if intensity <= 0f32 {
+            continue;
+        }
+        triangle_bounding_box(
+            [screen_coord[0].x as i32, screen_coord[0].y as i32],
+            [screen_coord[1].x as i32, screen_coord[1].y as i32],
+            [screen_coord[2].x as i32, screen_coord[2].y as i32],
+            image,
+            [
+                (intensity * 255f32).clamp(0f32, 255f32) as u8,
+                (intensity * 255f32).clamp(0f32, 255f32) as u8,
+                (intensity * 255f32).clamp(0f32, 255f32) as u8,
+            ],
+        );
         // triangle_bounding_box(vs[0], vs[1], vs[2], image, [rng.gen::<u8>(),rng.gen::<u8>(),rng.gen::<u8>()]);
-        
     }
 }
 
