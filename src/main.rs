@@ -3,8 +3,10 @@ use eframe::egui;
 use egui_extras::RetainedImage;
 use image::{imageops::flip_vertical_in_place, ImageBuffer, Rgb};
 use stopwatch::Stopwatch;
+use tinyrenderer::light::Light;
 use tinyrenderer::model::*;
 use tinyrenderer::renderer::*;
+use tinyrenderer::vec::Vec3;
 
 fn main() {
     let sw = Stopwatch::start_new();
@@ -48,7 +50,15 @@ struct TinyRender {
 impl eframe::App for TinyRender {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.image_buffer.fill(0u8);
-        draw_model_line(&self.model, &mut self.image_buffer);
+        let lights = vec![Light{
+            dir:Vec3{
+                x:0f32,
+                y:0f32,
+                z:-1f32
+            },
+            pos:Vec3 { x: 0f32, y: 0f32, z: 0f32 }
+        }];
+        draw_model_line(&self.model, &mut self.image_buffer, &lights);
         egui::Window::new("LRD's TinyRenderer").show(ctx, |ui| {
             ui.heading("Setting");
             ui.label(format!("frame time:{}ms", self.time_recorder.elapsed_ms()-self.last_time));

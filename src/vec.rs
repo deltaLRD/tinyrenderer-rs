@@ -34,20 +34,31 @@ where
         + Copy
         + std::ops::AddAssign
         + Into<f32>
-        + std::ops::Sub<Output = T>,
+        + std::ops::Sub<Output = T>
+        + std::ops::SubAssign
 {
     pub fn dot_product(&self, other: &Vec2<T>) -> T {
         self.x.mul(other.x).add(self.y.mul(other.y))
     }
-    pub fn add(&self, other: Vec2<T>) -> Vec2<T> {
+    pub fn add(&self, other: &Vec2<T>) -> Vec2<T> {
         Vec2 {
             x: self.x + other.x,
             y: self.y + other.y,
         }
     }
-    pub fn add_in_place(&mut self, other: Vec2<T>) {
+    pub fn add_in_place(&mut self, other: &Vec2<T>) {
         self.x += other.x;
         self.y += other.y;
+    }
+    pub fn sub(&self, other:&Vec2<T>) -> Vec2<T>{
+        Vec2{
+            x:self.x - other.x,
+            y:self.y - other.y
+        }
+    }
+    pub fn sub_in_place(&mut self, other:&Vec2<T>) {
+        self.x -= other.x;
+        self.y -= other.y;
     }
     pub fn len2(&self) -> T {
         self.dot_product(self)
@@ -62,7 +73,9 @@ where
         let len = self.len();
         Vec2 { x: (self.x.into())/len, y: (self.y.into())/len }
     }
-    
+    pub fn as_slice(&self) -> [T;2]{
+        [self.x, self.y]
+    }
 }
 
 impl<T> Vec3<T>
@@ -72,7 +85,8 @@ where
         + Copy
         + std::ops::AddAssign
         + Into<f32>
-        + std::ops::Sub<Output = T>,
+        + std::ops::Sub<Output = T>
+        + std::ops::SubAssign,
 {
     pub fn add(&self, other: &Vec3<T>) -> Vec3<T> {
         Vec3 {
@@ -85,6 +99,18 @@ where
         self.x += other.x;
         self.y += other.y;
         self.z += other.z;
+    }
+    pub fn sub(&self, other: &Vec3<T>) -> Vec3<T>{
+        Vec3 {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z
+        }
+    }
+    pub fn sub_in_place(&mut self, other: &Vec3<T>) {
+        self.x -= other.x;
+        self.y -= other.y;
+        self.z -= other.z;
     }
     pub fn dot_product(&self, other: &Vec3<T>) -> T {
         self.x * other.x + self.y * other.y + self.z * other.z
@@ -109,5 +135,8 @@ where
             y:self.y.into()/len,
             z:self.z.into()/len
         }
+    }
+    pub fn as_slice(&self) -> [T;3] {
+        [self.x, self.y, self.z]
     }
 }
