@@ -3,7 +3,7 @@ use crate::model::*;
 use crate::r#const::*;
 use crate::vec::*;
 use image::{ImageBuffer, Rgb};
-use rand::prelude::*;
+// use rand::prelude::*;
 use crate::light::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -162,10 +162,10 @@ pub fn triangle(
     line(v3[0], v3[1], v1[0], v1[1], image, RED);
 }
 
-pub fn draw_model_line(model: &Model, image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>, lights:&Vec<Light>) {
+pub fn draw_model_line(model: &Model, image: &mut ImageBuffer<Rgb<u8>, Vec<u8>>) {
     let width = image.width();
     let hight = image.height();
-    let mut rng = rand::thread_rng();
+    // let mut rng = rand::thread_rng();
 
     for i in 0..model.nfaces() {
         let face = model.face(i);
